@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python2.7
 # encoding:utf8
 
 #
@@ -25,7 +25,9 @@
 
 
 import sys
+import argparse
 
+from passlib.apps import custom_app_context as pwd_context
 import pygtk
 pygtk.require('2.0')
 import gtk
@@ -33,34 +35,31 @@ import pango
 
 import lock
 
-options = dict(BG_WRITING="white", BG_LOCKED="#EEEEEE", INITIAL_TEXT=";-)")
-
 
 def main(opts):
     def cb_lock(accel_group, aceleratable, keyval, modifir):
-        tb.set_text("%s\nlock" % tb.get_property('text'))
         window.modify_bg(gtk.STATE_NORMAL,
-                         gtk.gdk.color_parse(opts['BG_LOCKED']))
+                         gtk.gdk.color_parse(opts.bg_locked))
         draw.modify_bg(gtk.STATE_NORMAL,
-                       gtk.gdk.color_parse(opts['BG_LOCKED']))
+                       gtk.gdk.color_parse(opts.bg_locked))
         quit.set_sensitive(False)
         hbox.remove(quit)
         quit.destroy()
         vbox.remove(hbox)
         while gtk.events_pending():
             gtk.main_iteration_do(False)
-        lock.lock(lambda x: x == "yournicepassword")
+        lock.lock(lambda x: pwd_context.verify(x, opts.password_hash))
         gtk.main_quit()
 
     window = gtk.Window(gtk.WINDOW_TOPLEVEL)
     window.set_decorated(False)
-    window.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse(opts['BG_WRITING']))
+    window.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse(opts.bg_writing))
     window.fullscreen()
 
     settings = gtk.settings_get_default()
 
     draw = gtk.DrawingArea()
-    draw.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse(opts['BG_WRITING']))
+    draw.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse(opts.bg_writing))
     draw.set_size_request(400,300)
 
     pixmap = gtk.gdk.Pixmap(None, 1, 1, 1)
@@ -73,10 +72,10 @@ def main(opts):
     def get_text():
         return tb.get_text(tb.get_start_iter(), tb.get_end_iter())
 
-    tb.set_text(options['INITIAL_TEXT'])
+    tb.set_text(opts.text)
 
     quit = gtk.Button(stock=gtk.STOCK_QUIT)
-    quit.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse(opts['BG_WRITING']))
+    quit.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse(opts.bg_writing))
     quit.connect("clicked",gtk.main_quit)
 
     hbox = gtk.HBox()
@@ -160,7 +159,26 @@ def main(opts):
     tb.connect("changed", newtext)
     gtk.main()
 
+
+def main_gen(opts):
+    print pwd_context.encrypt(opts.plaintext)
+
+def get_parser():
+    p = argparse.ArgumentParser(description='Leave a message, '
+                                'then locks the screen')
+    sub = p.add_subparsers()
+    lock = sub.add_parser('lock')
+    lock.add_argument('--text', default=';-)')
+    lock.add_argument('--bg-writing', default='white')
+    lock.add_argument('--bg-locked', default='#EEEEEE')
+    lock.add_argument('password_hash', help='Hash, as created by passlib')
+    lock.set_defaults(func=main)
+    gen = sub.add_parser('password-gen')
+    gen.add_argument('plaintext')
+    gen.set_defaults(func=main_gen)
+    return p
+
+
 if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        options['INITIAL_TEXT'] = sys.argv[1]
-    main(options)
+    args = get_parser().parse_args()
+    args.func(args)
