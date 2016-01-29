@@ -19,7 +19,16 @@ screen.
 
 .. image:: http://i.imgur.com/lQHeS0u.gif
 
+A tipical message you could leave
+
 .. image:: https://i.imgur.com/3LBUjmk.png
+
+Credits
+---------
+
+This is basically a dirty mix of `screen-message
+<https://darcs.nomeata.de/screen-message/>`_ and `pyxtrlock
+<https://github.com/leonnnn/pyxtrlock>`_.
 
 License
 ---------
