@@ -24,124 +24,143 @@
 #     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 
+import sys
+
 import pygtk
 pygtk.require('2.0')
 import gtk
 import pango
-import sys
-import gobject
 
-window = gtk.Window(gtk.WINDOW_TOPLEVEL)
-window.set_decorated(False)
-window.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse("white"))
-window.fullscreen()
+import lock
 
-settings = gtk.settings_get_default()
-
-draw = gtk.DrawingArea()
-draw.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse("white"))
-draw.set_size_request(400,300)
-
-pixmap = gtk.gdk.Pixmap(None, 1, 1, 1)
-color = gtk.gdk.Color()
-cursor = gtk.gdk.Cursor(pixmap, pixmap, color, color, 0, 0)
+options = dict(BG_WRITING="white", BG_LOCKED="#EEEEEE", INITIAL_TEXT=";-)")
 
 
-tv = gtk.TextView()
-tb = tv.get_buffer()
+def main(opts):
+    def cb_lock(accel_group, aceleratable, keyval, modifir):
+        tb.set_text("%s\nlock" % tb.get_property('text'))
+        window.modify_bg(gtk.STATE_NORMAL,
+                         gtk.gdk.color_parse(opts['BG_LOCKED']))
+        draw.modify_bg(gtk.STATE_NORMAL,
+                       gtk.gdk.color_parse(opts['BG_LOCKED']))
+        quit.set_sensitive(False)
+        hbox.remove(quit)
+        quit.destroy()
+        vbox.remove(hbox)
+        while gtk.events_pending():
+            gtk.main_iteration_do(False)
+        lock.lock(lambda x: x == "yournicepassword")
+        gtk.main_quit()
 
-def get_text():
-	return tb.get_text(tb.get_start_iter(), tb.get_end_iter())
+    window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+    window.set_decorated(False)
+    window.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse(opts['BG_WRITING']))
+    window.fullscreen()
 
-if len(sys.argv) > 1:
-	tb.set_text(" ".join(sys.argv[1:]))
-else:
-	tb.set_text(";-)")
+    settings = gtk.settings_get_default()
 
-quit = gtk.Button(stock=gtk.STOCK_QUIT)
-quit.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse("white"))
-quit.connect("clicked",gtk.main_quit)
+    draw = gtk.DrawingArea()
+    draw.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse(opts['BG_WRITING']))
+    draw.set_size_request(400,300)
 
-hbox = gtk.HBox()
-hbox.pack_start(tv, expand=True, fill=True)
-hbox.pack_start(quit,  expand=False,fill=False)
+    pixmap = gtk.gdk.Pixmap(None, 1, 1, 1)
+    color = gtk.gdk.Color()
+    cursor = gtk.gdk.Cursor(pixmap, pixmap, color, color, 0, 0)
 
-vbox = gtk.VBox()
-vbox.pack_start(draw, expand=True, fill=True)
-vbox.pack_start(hbox, expand=False, fill=False)
-window.add(vbox)
+    tv = gtk.TextView()
+    tb = tv.get_buffer()
 
-font = pango.FontDescription()
-font.set_family("sans-serif")
-font.set_size(60*pango.SCALE)
-layout = draw.create_pango_layout(get_text())
-layout.set_font_description(font)
-layout.set_alignment(pango.ALIGN_CENTER)
+    def get_text():
+        return tb.get_text(tb.get_start_iter(), tb.get_end_iter())
 
+    tb.set_text(options['INITIAL_TEXT'])
 
-accel = gtk.AccelGroup()
-key, mod = gtk.accelerator_parse("<Ctrl>Q")
-accel.connect_group(key, mod, 0, gtk.main_quit)
-key, mod = gtk.accelerator_parse("Escape")
-#accel.connect_group(key, mod, 0, gtk.main_quit)
-#key, mod = gtk.accelerator_parse("<Ctrl>C")
-accel.connect_group(key, mod, 0, (lambda x,y,z,v: tb.set_text("")))
-window.add_accel_group(accel)
+    quit = gtk.Button(stock=gtk.STOCK_QUIT)
+    quit.modify_bg(gtk.STATE_NORMAL, gtk.gdk.color_parse(opts['BG_WRITING']))
+    quit.connect("clicked",gtk.main_quit)
 
-window.connect("destroy", gtk.main_quit)
+    hbox = gtk.HBox()
+    hbox.pack_start(tv, expand=True, fill=True)
+    hbox.pack_start(quit,  expand=False,fill=False)
 
-window.show_all()
+    vbox = gtk.VBox()
+    vbox.pack_start(draw, expand=True, fill=True)
+    vbox.pack_start(hbox, expand=False, fill=False)
+    window.add(vbox)
 
-need_resize=True
-need_quick=True
+    font = pango.FontDescription()
+    font.set_family("sans-serif")
+    font.set_size(60*pango.SCALE)
+    layout = draw.create_pango_layout(get_text())
+    layout.set_font_description(font)
+    layout.set_alignment(pango.ALIGN_CENTER)
 
-def resize(w=None,rect=None):
-	global need_resize
-	draw.window.set_cursor(cursor)
-	(w1,h1) = layout.get_pixel_size()
-	if h1>0 and w1>0:
-		(x,y,w2,h2) = draw.get_allocation()
-		s = font.get_size()
-		s = min ( int (s*w2/w1), int (s*h2/h1) )
-		font.set_size(s)
-		layout.set_font_description(font)
-		need_resize=False
-	else:
-		need_resize=True
+    accel = gtk.AccelGroup()
+    key, mod = gtk.accelerator_parse("<Ctrl>Q")
+    accel.connect_group(key, mod, 0, gtk.main_quit)
+    key, mod = gtk.accelerator_parse("Escape")
+    accel.connect_group(key, mod, 0, (lambda x,y,z,v: tb.set_text("")))
+    key, mod = gtk.accelerator_parse("<Ctrl>D")
+    accel.connect_group(key, mod, 0, cb_lock)
+    window.add_accel_group(accel)
 
-def redraw(w=None,e=None):
-	global need_resize, need_quick
-	if layout.get_text(): # Fails for empty lines :-(
-		gc = draw.get_style().fg_gc[gtk.STATE_NORMAL]
-		(w1,h1) = layout.get_pixel_size()
-		if h1>0 and w1>0:
-			(x,y,w2,h2) = draw.get_allocation()
-			draw.window.draw_layout(gc,(w2-w1)/2,(h2-h1)/2,layout)
-			hq(True)
+    window.connect("destroy", gtk.main_quit)
 
-quality = False
-def hq(q,force=False):
-	global quality
-	if q != quality:
-		if q:
-			settings.set_long_property("gtk-xft-antialias",1,"Hier halt")
-		else:
-			settings.set_long_property("gtk-xft-antialias",0,"Hier halt")
-	else:
-		if force:
-			draw.queue_draw()
+    window.show_all()
 
-	quality = q
-	return False
+    need_resize=True
+    need_quick=True
 
-def newtext(w):
-	global timeout_id
-	layout.set_text(get_text())
-	resize()
-	hq(False, True)
+    def resize(w=None,rect=None):
+        global need_resize
+        draw.window.set_cursor(cursor)
+        (w1,h1) = layout.get_pixel_size()
+        if h1>0 and w1>0:
+            (x,y,w2,h2) = draw.get_allocation()
+            s = font.get_size()
+            s = min ( int (s*w2/w1), int (s*h2/h1) )
+            font.set_size(s)
+            layout.set_font_description(font)
+            need_resize=False
+        else:
+            need_resize=True
 
-draw.connect("configure-event", resize)
-draw.connect("expose-event", redraw)
-tb.connect("changed", newtext)
+    def redraw(w=None,e=None):
+        global need_resize, need_quick
+        if layout.get_text():  # Fails for empty lines :-(
+            gc = draw.get_style().fg_gc[gtk.STATE_NORMAL]
+            (w1,h1) = layout.get_pixel_size()
+            if h1 > 0 and w1 > 0:
+                (x,y,w2,h2) = draw.get_allocation()
+                draw.window.draw_layout(gc,(w2-w1)/2,(h2-h1)/2,layout)
+                hq(True)
 
-gtk.main()
+    def hq(q, force=False):
+        if q != hq.quality:
+            if q:
+                settings.set_long_property("gtk-xft-antialias", 1, "Hier halt")
+            else:
+                settings.set_long_property("gtk-xft-antialias", 0, "Hier halt")
+        else:
+            if force:
+                draw.queue_draw()
+
+        hq.quality = q
+        return False
+    hq.quality = False
+
+    def newtext(w):
+        global timeout_id
+        layout.set_text(get_text())
+        resize()
+        hq(False, True)
+
+    draw.connect("configure-event", resize)
+    draw.connect("expose-event", redraw)
+    tb.connect("changed", newtext)
+    gtk.main()
+
+if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        options['INITIAL_TEXT'] = sys.argv[1]
+    main(options)
