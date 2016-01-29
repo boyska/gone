@@ -33,7 +33,7 @@ pygtk.require('2.0')
 import gtk
 import pango
 
-import lock
+import xlock
 
 
 def main(opts):
@@ -48,7 +48,7 @@ def main(opts):
         vbox.remove(hbox)
         while gtk.events_pending():
             gtk.main_iteration_do(False)
-        lock.lock(lambda x: pwd_context.verify(x, opts.password_hash))
+        xlock.lock(lambda x: pwd_context.verify(x, opts.password_hash))
         gtk.main_quit()
 
     window = gtk.Window(gtk.WINDOW_TOPLEVEL)
