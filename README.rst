@@ -9,6 +9,25 @@ Another "feature" of gone is its *non*-integration with PAM. ``gone`` needs a
 password-hash as its first parameter, and will not check against any other
 system db. This is to encourage different password for different purposes.
 
+Howto
+--------
+
+First of all, you should choose your password:
+
+.. code:: bash
+  
+   gone password-gen 'P4ssw0rd!'
+
+The output, will be something like ``$6$rounds=678695$6oMtfzrgJtpCCxD6$uqopLEv9pqjt7KXj4kQou3K5yO7XblAPD1q3u2EZfnfv4sdOlX414GNzB4DAv4LEshu0aMwmtxg7biyK5.adN/``
+
+Our script locker will therefore be
+
+.. code:: bash
+  
+   gone lock '$6$rounds=678695$6oMtfzrgJtpCCxD6$uqopLEv9pqjt7KXj4kQou3K5yO7XblAPD1q3u2EZfnfv4sdOlX414GNzB4DAv4LEshu0aMwmtxg7biyK5.adN/'
+
+When you run this command, the script **WON'T** be locked until you press ``Ctrl+D``. Until that moment, you can type, or exit with ``Ctrl+Q``.
+
 Screenshots
 ------------
 
