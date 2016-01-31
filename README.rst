@@ -9,6 +9,15 @@ Another "feature" of gone is its *non*-integration with PAM. ``gone`` needs a
 password-hash as its first parameter, and will not check against any other
 system db. This is to encourage different password for different purposes.
 
+Does it work?
+-------------
+
+Well, not really well:
+ * only a single screen get the text, the other will still show everything
+   there's.
+ * new windows created while you are away (typically IM messages, but could be
+   anything) will be shown above the screen message.
+
 Howto
 --------
 
